@@ -4,7 +4,10 @@ from urllib.parse import urlparse
 from collections import defaultdict as dd
 
 
-http_methods = ['GET', 'POST', 'HEAD', 'PUT', 'DELETE']
+http_methods = [
+    'GET', 'POST', 'HEAD', 'PUT', 'DELETE',
+    'OPTIONS', 'TRACE', 'CONNECT', 'PATCH'
+]
 
 
 def parse_line(line):
