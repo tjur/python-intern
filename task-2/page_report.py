@@ -4,30 +4,26 @@ from urllib.parse import urlparse
 from collections import defaultdict as dd
 
 
-requests_url_count = dd(int)
-invalid_lines_count = 0
 http_methods = ['GET', 'POST', 'HEAD', 'PUT', 'DELETE']
 
+
 def parse_line(line):
-    global requests_url_count, invalid_lines_count
-    try:
-        # many of these variables won't be used, but they can be useful if we'd like to change
-        # format of printed results (for instance add some information about ip address or sent bytes)
-        ip_addr, rest = parse_ipv4(line)
-        datetime, rest = parse_datetime(rest)
-        http_method, stripped_url, rest = parse_request(rest)
-        http_response, rest = parse_response(rest)
-        bytes_sent = parse_bytes(rest)
+    # many of these variables won't be used, but they can be useful
+    # if we'd like to change format of printed results
+    # (for instance add some information about ip address or sent bytes)
+    ip_addr, rest = parse_ipv4(line)
+    datetime, rest = parse_datetime(rest)
+    http_method, stripped_url, rest = parse_request(rest)
+    response_code, rest = parse_response(rest)
+    bytes_sent = parse_bytes(rest)
+    return stripped_url
 
-        requests_url_count[stripped_url] += 1
-
-    except ValueError:
-        invalid_lines_count += 1
 
 def parse_ipv4(line):
     ipv4_str, rest = line.lstrip().split(' ', 1)
-    ipaddress.IPv4Address(ipv4_str) # validate ipv4 (raises ValueError)
+    ipaddress.IPv4Address(ipv4_str)  # validate ipv4 (raises ValueError)
     return ipv4_str, rest
+
 
 def parse_datetime(line):
     line = line.lstrip()
@@ -38,6 +34,7 @@ def parse_datetime(line):
     # I don't validate datetime because there are too many possible formats
     # and the task does not specify one fixed format
     return datetime, rest
+
 
 def parse_request(line):
     line = line.lstrip()
@@ -52,6 +49,7 @@ def parse_request(line):
 
     stripped_url = strip_url(url)
     return http_method, stripped_url, rest
+
 
 def strip_url(url):
     url = url.strip()
@@ -70,23 +68,32 @@ def strip_url(url):
 
     return stripped_url
 
+
 def parse_response(line):
     response_code_str, rest = line.lstrip().split(' ', 1)
     response_code = int(response_code_str)
     return response_code, rest
 
+
 def parse_bytes(line):
     bytes = int(line)
     return bytes
 
-# changes requests_url_count dict to a list of tuples (url, count), sorts it in a proper way and prints
-def print_result():
-    url_count_list = [(url, count) for url, count in requests_url_count.items()]
-    url_count_list.sort(key=lambda p:(-p[1], p[0])) # count descending, url lexicographically
+
+# changes requests_url_count dict to a list of tuples (url, count),
+# sorts it in a proper way and prints
+def print_result(requests_url_count, invalid_lines_count):
+    url_count_list = [
+        (url, count) for url, count in requests_url_count.items()
+    ]
+    # sort - count descending, url lexicographically
+    url_count_list.sort(key=lambda p: (-p[1], p[0]))
     for url, count in url_count_list:
         print('"{0}",{1}'.format(url, count))
     if invalid_lines_count > 0:
-        print('\nInvalid log lines: {0}'.format(invalid_lines_count), file=sys.stderr)
+        print(
+            '\nInvalid log lines: {0}'.format(invalid_lines_count),
+            file=sys.stderr)
 
 
 if __name__ == '__main__':
@@ -95,6 +102,13 @@ if __name__ == '__main__':
     else:
         path = sys.argv[1]
         with open(path, 'r') as logs:
+            requests_url_count = dd(int)
+            invalid_lines_count = 0
             for line in logs:
-                parse_line(line)
-            print_result()
+                try:
+                    stripped_url = parse_line(line)
+                    requests_url_count[stripped_url] += 1
+                except ValueError:
+                    invalid_lines_count += 1
+
+            print_result(requests_url_count, invalid_lines_count)
